@@ -1,0 +1,39 @@
+{
+  "allowedCommands": [
+    "ls",
+    "cat",
+    "echo",
+    "pwd",
+    "grep",
+    "find",
+    "head",
+    "tail",
+    "wc",
+    "mkdir",
+    "touch",
+    "rm",
+    "cp",
+    "mv"
+  ],
+  "allowedDirectories": [
+    "/tmp",
+    "/home"
+  ],
+  "session": {
+    "timeout": 300,
+    "maxActiveSessions": 5,
+    "defaultMode": "stateless"
+  },
+  "security": {
+    "validateCommandsStrictly": true,
+    "sanitizeOutput": true,
+    "maxOutputSize": 1048576,
+    "commandTimeout": 30
+  },
+  "logging": {
+    "level": "info",
+    "file": "logs/bash-mcp.log",
+    "maxSize": 10485760,
+    "maxFiles": 5
+  }
+}
