@@ -84,5 +84,5 @@ function validateConfig(config: MCPConfig): void {
     throw new Error(`Config error: logging.level must be one of ${validLogLevels.join(', ')}`);
   }
 
-  logger.info('Configuration validated successfully');
+  // logger.info('Configuration validated successfully');
 }

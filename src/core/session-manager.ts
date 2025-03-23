@@ -65,7 +65,7 @@ export class SessionManager {
       // Add the session to our map
       this.sessions.set(sessionId, session);
 
-      logger.info(`Created new session: ${sessionId}`);
+      // logger.info(`Created new session: ${sessionId}`);
       return session;
     } catch (error) {
       logger.error(
@@ -171,7 +171,7 @@ export class SessionManager {
       // Remove the session from our map
       this.sessions.delete(sessionId);
 
-      logger.info(`Closed session: ${sessionId}`);
+      // logger.info(`Closed session: ${sessionId}`);
       return true;
     } catch (error) {
       logger.error(
@@ -219,7 +219,7 @@ export class SessionManager {
       const timeSinceLastActivity = now.getTime() - session.lastActivity.getTime();
 
       if (timeSinceLastActivity > sessionTimeout) {
-        logger.info(`Session ${sessionId} has expired and will be closed`);
+        // logger.info(`Session ${sessionId} has expired and will be closed`);
         this.closeSession(sessionId);
       }
     }
@@ -257,6 +257,6 @@ export class SessionManager {
       this.closeSession(sessionId);
     }
 
-    logger.info('Session manager shut down');
+    // logger.info('Session manager shut down');
   }
 }

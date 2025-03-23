@@ -56,7 +56,7 @@ export class CommandExecutor {
     }
 
     // Log the command execution
-    logger.info(`Executing command: ${command} in directory: ${cwd}`);
+    // logger.info(`Executing command: ${command} in directory: ${cwd}`);
 
     try {
       // Execute the command

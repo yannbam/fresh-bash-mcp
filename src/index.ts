@@ -124,7 +124,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
 
     // Register the tools/list handler
     server.setRequestHandler(ToolsListRequestSchema, async () => {
-      logger.info('Handling tools/list request');
+      // logger.info('Handling tools/list request');
       return {
         tools: [
           {
@@ -189,7 +189,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
 
     // Register the tools/call handler for executing tools
     server.setRequestHandler(ToolCallRequestSchema, async (request) => {
-      logger.info(`Handling tools/call request for: ${request.params.name}`);
+      // logger.info(`Handling tools/call request for: ${request.params.name}`);
       
       const toolName = request.params.name;
       const args = request.params.arguments || {};
@@ -197,7 +197,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle execute_command
       if (toolName === 'execute_command') {
         try {
-          logger.info(`MCP: Executing command: ${args.command}`);
+          // logger.info(`MCP: Executing command: ${args.command}`);
           
           const result = await bashMcp.executeCommand(args.command, { 
             cwd: args.cwd, 
@@ -231,7 +231,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle create_session
       else if (toolName === 'create_session') {
         try {
-          logger.info(`MCP: Creating session in: ${args.cwd}`);
+          // logger.info(`MCP: Creating session in: ${args.cwd}`);
           
           const result = bashMcp.createSession(args.cwd);
 
@@ -272,7 +272,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle send_session_input
       else if (toolName === 'send_session_input') {
         try {
-          logger.info(`MCP: Sending input to session: ${args.sessionId}`);
+          // logger.info(`MCP: Sending input to session: ${args.sessionId}`);
           
           const result = await bashMcp.sendInput({ sessionId: args.sessionId, input: args.input });
 
@@ -302,7 +302,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle close_session
       else if (toolName === 'close_session') {
         try {
-          logger.info(`MCP: Closing session: ${args.sessionId}`);
+          // logger.info(`MCP: Closing session: ${args.sessionId}`);
           
           const result = bashMcp.closeSession(args.sessionId);
 
@@ -343,7 +343,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle list_sessions
       else if (toolName === 'list_sessions') {
         try {
-          logger.info('MCP: Listing all sessions');
+          // logger.info('MCP: Listing all sessions');
           
           const sessions = bashMcp.listSessions();
           
@@ -403,20 +403,20 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
     
     // Set up cleanup on exit
     process.on('SIGINT', () => {
-      logger.info('Shutting down MCP server');
+      // logger.info('Shutting down MCP server');
       bashMcp.shutdown();
       process.exit(0);
     });
 
     process.on('SIGTERM', () => {
-      logger.info('Shutting down MCP server');
+      // logger.info('Shutting down MCP server');
       bashMcp.shutdown();
       process.exit(0);
     });
 
     // Start the server
     await server.connect(transport);
-    logger.info('MCP server running');
+    // logger.info('MCP server running');
 
   } catch (error) {
     logger.error(`Failed to start MCP server: ${error instanceof Error ? error.message : String(error)}`);
