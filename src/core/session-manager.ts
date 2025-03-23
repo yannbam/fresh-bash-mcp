@@ -274,6 +274,31 @@ export class SessionManager {
   }
 
   /**
+   * Clean terminal output by removing control sequences and MCP markers
+   * @param output The raw terminal output
+   * @returns Cleaned output
+   */
+  private cleanTerminalOutput(output: string): string {
+    // Remove terminal control sequences (like bracketed paste mode markers)
+    let cleaned = output.replace(/\[\?[0-9]*[a-zA-Z]/g, '');
+    
+    // Remove ANSI escape sequences
+    cleaned = cleaned.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+    
+    // Remove our custom PS1 prompt lines
+    cleaned = cleaned.replace(/MCP_PROMPT\|\d+\|#\s*/g, '');
+    
+    // Remove any carriage returns (common in terminal output)
+    cleaned = cleaned.replace(/\r/g, '');
+    
+    // Normalize newlines
+    cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+    
+    // Trim leading/trailing whitespace
+    return cleaned.trim();
+  }
+
+  /**
    * Send input to an interactive session and collect the resulting output
    */
   public collectOutputAfterInput(
@@ -306,9 +331,10 @@ export class SessionManager {
       // Add data listener and get the disposable
       const dataDisposable = session.process.onData((data: string) => {
         output += data;
+        const cleanedOutput = this.cleanTerminalOutput(output);
         
         // If the output appears to stabilize and is waiting for input, return early
-        if (output.length > 0 && isWaitingForInput(output) && !resultSent) {
+        if (cleanedOutput.length > 0 && isWaitingForInput(cleanedOutput) && !resultSent) {
           resultSent = true;
           
           // Wait a short time for any additional output
@@ -319,7 +345,7 @@ export class SessionManager {
             
             resolve({
               success: true,
-              output,
+              output: cleanedOutput,
               sessionId,
               command: input,
               isInteractive: true,
@@ -338,15 +364,16 @@ export class SessionManager {
           resultSent = true;
           dataDisposable.dispose();
           
-          logger.debug(`Timeout after input in session ${sessionId}, collected output length: ${output.length}`);
+          const cleanedOutput = this.cleanTerminalOutput(output);
+          logger.debug(`Timeout after input in session ${sessionId}, collected output length: ${cleanedOutput.length}`);
           
           resolve({
             success: true,
-            output,
+            output: cleanedOutput,
             sessionId,
             command: input,
             isInteractive: true,
-            waitingForInput: isWaitingForInput(output),
+            waitingForInput: isWaitingForInput(cleanedOutput),
           });
         }
       }, timeout);

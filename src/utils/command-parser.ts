@@ -167,11 +167,23 @@ export class DefaultCommandOutputParser implements CommandOutputParser {
   }
 
   /**
-   * Clean the output by removing MCP-specific markers and formatting
+   * Clean the output by removing terminal control sequences, MCP-specific markers and extra whitespace
    */
   private cleanOutput(): void {
+    // Remove terminal control sequences (like bracketed paste mode markers)
+    this.output = this.output.replace(/\[\?[0-9]*[a-zA-Z]/g, '');
+    
+    // Remove ANSI escape sequences
+    this.output = this.output.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '');
+    
     // Remove our custom PS1 prompt lines
     this.output = this.output.replace(/MCP_PROMPT\|\d+\|#\s*/g, '');
+    
+    // Remove any carriage returns (common in terminal output)
+    this.output = this.output.replace(/\r/g, '');
+    
+    // Normalize newlines
+    this.output = this.output.replace(/\n{3,}/g, '\n\n');
     
     // Trim leading/trailing whitespace
     this.output = this.output.trim();
@@ -218,7 +230,13 @@ export function isWaitingForInput(output: string): boolean {
     /\([^)]*\) *$/m, // Parenthesized prompts like (y/n)
   ];
 
+  // Clean the output first for more reliable detection
+  const cleanedOutput = output
+    .replace(/\[\?[0-9]*[a-zA-Z]/g, '')  // Remove terminal control sequences
+    .replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '')  // Remove ANSI escape sequences
+    .replace(/MCP_PROMPT\|\d+\|#\s*/g, '')  // Remove our custom prompt
+    .trim();
+
   // Check if any of these patterns match at the end of the output
-  const trimmedOutput = output.trimEnd();
-  return promptPatterns.some(pattern => pattern.test(trimmedOutput));
+  return promptPatterns.some(pattern => pattern.test(cleanedOutput));
 }
