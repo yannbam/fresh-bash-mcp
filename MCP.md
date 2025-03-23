@@ -24,10 +24,15 @@ npm run mcp
 You can use the [MCP Inspector](https://github.com/modelcontextprotocol/inspector) to interact with the server:
 
 ```bash
-npx @modelcontextprotocol/inspector node dist/mcp-server.js
+# Start the MCP Inspector
+npm run inspector
 ```
 
 This will start the MCP Inspector web interface, which allows you to test the server's tools.
+
+## MCP SDK Version
+
+This project uses MCP SDK version 1.0.1.
 
 ## Available Tools
 
@@ -99,7 +104,7 @@ The MCP server uses the same configuration file as the Bash MCP library, located
 
 1. Start the MCP server with the Inspector: 
    ```bash
-   npx @modelcontextprotocol/inspector node dist/mcp-server.js
+   npm run inspector
    ```
 
 2. Open the Inspector web interface (usually at http://localhost:5173)

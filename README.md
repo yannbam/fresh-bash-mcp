@@ -1,6 +1,6 @@
 # Bash MCP (Master Control Program)
 
-A TypeScript application that allows Claude to safely execute bash commands with security safeguards.
+A TypeScript application that allows Claude to safely execute bash commands with security safeguards. This project implements the Model Context Protocol (MCP) to provide a secure interface for executing bash commands from AI assistants like Claude.
 
 ## Features
 
@@ -13,6 +13,7 @@ A TypeScript application that allows Claude to safely execute bash commands with
   - Output sanitization
 - Session management for interactive commands
 - Comprehensive logging
+- MCP server implementation for AI integration
 
 ## Installation
 
@@ -59,7 +60,9 @@ Example configuration:
 
 ## Usage
 
-### Simple Command Execution
+### As a Library
+
+#### Simple Command Execution
 
 ```typescript
 import { executeCommand } from 'bash-mcp';
@@ -68,7 +71,7 @@ const result = await executeCommand('ls -la', { cwd: '/home/user' });
 console.log(result.output);
 ```
 
-### Interactive Sessions
+#### Interactive Sessions
 
 ```typescript
 import { initBashMCP } from 'bash-mcp';
@@ -90,6 +93,23 @@ console.log(result2.output);
 // Close the session when done
 mcp.closeSession(sessionId);
 ```
+
+### As an MCP Server
+
+This project includes an MCP server implementation that can be used with Claude Desktop or other MCP clients:
+
+```bash
+# Start the TypeScript MCP server
+npm run mcp
+
+# Start the JavaScript MCP server
+npm run mcp-js
+
+# Start with MCP Inspector
+npm run inspector
+```
+
+See `MCP.md` for detailed documentation on the MCP server implementation.
 
 ## Security Considerations
 
@@ -131,3 +151,7 @@ npm run format    # Format code
 ```bash
 npm test
 ```
+
+## MCP SDK Version
+
+This project uses MCP SDK version 1.0.1.
