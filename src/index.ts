@@ -232,18 +232,6 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
             listChanged: false,
           },
         },
-        instructions: `
-This Bash MCP server provides secure access to bash commands and interactive sessions.
-
-Available tools:
-- execute_command: Run a command with a shell
-- create_session: Create an interactive bash session
-- send_session_input: Send input to an interactive session
-- close_session: Close a session
-- list_sessions: List all active sessions
-
-For interactive use, create a session with create_session, then use send_session_input for each command.
-`,
       }
     );
 

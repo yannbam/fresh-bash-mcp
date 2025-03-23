@@ -18,14 +18,14 @@ export HISTCONTROL=ignorespace
 
 # Define command marker functions with command ID support
 function __mcp_cmd_start {
-  local cmd_id=$1
-  echo "MCP_CMD_START|$(date +%s.%N)|${cmd_id}"
+  local cmdid="$1"
+  echo "MCP_CMD_START|$(date +%s.%N)|$cmdid"
 }
 
 function __mcp_cmd_end {
   local rc=$?
-  local cmd_id=$1
-  echo "MCP_CMD_END|$(date +%s.%N)|${cmd_id}|$rc"
+  local cmdid="$1"
+  echo "MCP_CMD_END|$(date +%s.%N)|$cmdid|$rc"
   return $rc
 }
 

@@ -79,6 +79,7 @@ export class SessionManager {
 
         // Initialize the session with our script
         let output = '';
+        let dataDisposable: { dispose: () => void }; 
         
         const dataHandler = (data: string) => {
           output += data;
@@ -86,13 +87,13 @@ export class SessionManager {
             // Cleanup
             session.initialized = true;
             session.state = 'IDLE';
-            ptyProcess.off('data', dataHandler);
+            dataDisposable.dispose(); // Dispose the event handler
             logger.debug(`Session ${sessionId} initialized successfully`);
             resolve(session);
           }
         };
 
-        ptyProcess.onData(dataHandler);
+        dataDisposable = ptyProcess.onData(dataHandler);
         
         // Choose the appropriate initialization script based on the interactive flag
         const initScript = interactive ? BASH_INIT_SCRIPT : BASH_INIT_SCRIPT_NONINTERACTIVE;
