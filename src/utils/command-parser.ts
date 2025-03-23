@@ -13,6 +13,7 @@ export class DefaultCommandOutputParser implements CommandOutputParser {
   public startTime?: Date;
   public endTime?: Date;
   private buffer = '';
+  private commandId: string;
 
   /**
    * Create a new command output parser
@@ -20,6 +21,8 @@ export class DefaultCommandOutputParser implements CommandOutputParser {
    */
   constructor(command: string) {
     this.command = command;
+    // Generate a unique ID for this command execution
+    this.commandId = `cmd_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
   }
 
   /**
@@ -29,77 +32,93 @@ export class DefaultCommandOutputParser implements CommandOutputParser {
   public processOutput(chunk: string): void {
     // Add the new chunk to our buffer
     this.buffer += chunk;
-
-    // Look for the start marker
+    
+    logger.debug(`Parser state: ${this.state}, chunk length: ${chunk.length}`);
+    logger.debug(`Chunk preview: ${chunk.substring(0, Math.min(50, chunk.length)).replace(/\n/g, '\\n')}...`);
+    
+    // Process the buffer based on current state
     if (this.state === 'IDLE') {
-      const startMarkerIndex = this.buffer.indexOf('MCP_CMD_START|');
-      if (startMarkerIndex !== -1) {
-        // We found the start marker
-        const startTimestampMatch = this.buffer.match(/MCP_CMD_START\|([0-9.]+)/);
-        if (startTimestampMatch) {
-          try {
-            // Convert the timestamp to a Date object
-            const timestamp = parseFloat(startTimestampMatch[1]);
-            this.startTime = new Date(timestamp * 1000);
-          } catch (e) {
-            logger.warn(`Failed to parse command start timestamp: ${e}`);
-            this.startTime = new Date();
-          }
-        }
+      this.processStart();
+    } 
+    
+    if (this.state === 'COLLECTING') {
+      this.processEnd();
+    }
+  }
 
-        // Move to the COLLECTING state
-        this.state = 'COLLECTING';
-        
-        // Remove everything up to and including the start marker
-        const contentAfterMarker = this.buffer.substring(startMarkerIndex + 'MCP_CMD_START|'.length);
-        
-        // Find the first newline after the marker (to remove timestamp line)
-        const firstNewline = contentAfterMarker.indexOf('\n');
-        if (firstNewline !== -1) {
-          this.buffer = contentAfterMarker.substring(firstNewline + 1);
-        } else {
-          // If there's no newline, clear the buffer as it's just the marker
-          this.buffer = '';
-        }
+  /**
+   * Process the buffer to look for the start marker
+   */
+  private processStart(): void {
+    // Look for the complete start marker with our command ID
+    const startPattern = new RegExp(`MCP_CMD_START\\|([0-9.]+)\\|${this.commandId}`);
+    const startMatch = this.buffer.match(startPattern);
+    
+    if (startMatch) {
+      // We found our specific start marker
+      logger.debug(`Found start marker for command: ${this.command}, ID: ${this.commandId}`);
+      
+      try {
+        // Convert the timestamp to a Date object
+        const timestamp = parseFloat(startMatch[1]);
+        this.startTime = new Date(timestamp * 1000);
+      } catch (e) {
+        logger.warn(`Failed to parse command start timestamp: ${e}`);
+        this.startTime = new Date();
+      }
+      
+      // Move to the COLLECTING state
+      this.state = 'COLLECTING';
+      
+      // Find the position after the start marker (end of the line)
+      const markerIndex = this.buffer.indexOf(startMatch[0]);
+      const lineEndIndex = this.buffer.indexOf('\n', markerIndex);
+      
+      if (lineEndIndex !== -1) {
+        // Remove everything up to and including the start marker line
+        this.buffer = this.buffer.substring(lineEndIndex + 1);
+      } else {
+        // If there's no newline, clear the buffer as it's just the marker
+        this.buffer = '';
       }
     }
+  }
+
+  /**
+   * Process the buffer to look for the end marker
+   */
+  private processEnd(): void {
+    // Look for the complete end marker with our command ID
+    const endPattern = new RegExp(`MCP_CMD_END\\|([0-9.]+)\\|${this.commandId}\\|(\\d+)`);
+    const endMatch = this.buffer.match(endPattern);
     
-    // If we're collecting output, check for the end marker
-    if (this.state === 'COLLECTING') {
-      const endMarkerIndex = this.buffer.indexOf('MCP_CMD_END|');
-      if (endMarkerIndex !== -1) {
-        // We found the end marker
+    if (endMatch) {
+      // We found our specific end marker
+      logger.debug(`Found end marker for command: ${this.command}, ID: ${this.commandId}`);
+      
+      try {
+        // Save the exit code
+        this.exitCode = parseInt(endMatch[2], 10);
         
-        // Extract everything before the end marker
-        this.output = this.buffer.substring(0, endMarkerIndex);
-        
-        // Extract the exit code
-        const endMatch = this.buffer.match(/MCP_CMD_END\|([0-9.]+)\|(\d+)/);
-        if (endMatch) {
-          try {
-            // Save the exit code
-            this.exitCode = parseInt(endMatch[2], 10);
-            
-            // Save the end timestamp
-            const timestamp = parseFloat(endMatch[1]);
-            this.endTime = new Date(timestamp * 1000);
-          } catch (e) {
-            logger.warn(`Failed to parse command end marker: ${e}`);
-            this.exitCode = 1; // Assume failure
-            this.endTime = new Date();
-          }
-        } else {
-          // If we can't extract the exit code, assume it's a failure
-          this.exitCode = 1;
-          this.endTime = new Date();
-        }
-        
-        // Switch to the COMPLETED state
-        this.state = 'COMPLETED';
-        
-        // Clean up any prompt strings that might be left in the output
-        this.cleanOutput();
+        // Save the end timestamp
+        const timestamp = parseFloat(endMatch[1]);
+        this.endTime = new Date(timestamp * 1000);
+      } catch (e) {
+        logger.warn(`Failed to parse command end marker: ${e}`);
+        this.exitCode = 1; // Assume failure
+        this.endTime = new Date();
       }
+      
+      // Extract output (everything before the end marker)
+      const markerIndex = this.buffer.indexOf(endMatch[0]);
+      this.output = this.buffer.substring(0, markerIndex);
+      
+      // Clean up the output
+      this.cleanOutput();
+      
+      // Switch to the COMPLETED state
+      this.state = 'COMPLETED';
+      logger.debug(`Command completed: ${this.command}, Exit code: ${this.exitCode}`);
     }
   }
 
@@ -138,6 +157,13 @@ export class DefaultCommandOutputParser implements CommandOutputParser {
     this.exitCode = null;
     this.startTime = undefined;
     this.endTime = undefined;
+  }
+
+  /**
+   * Get the unique ID for this command execution
+   */
+  public getCommandId(): string {
+    return this.commandId;
   }
 
   /**

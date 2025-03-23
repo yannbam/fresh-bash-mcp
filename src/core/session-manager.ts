@@ -4,7 +4,7 @@ import { MCPConfig, Session, ExecutionResult, SessionState } from '../types/inde
 import { logger } from '../utils/logger.js';
 import { isDirectoryAllowed } from '../utils/validator.js';
 import { DefaultCommandOutputParser, isInteractiveCommand, isWaitingForInput } from '../utils/command-parser.js';
-import { BASH_INIT_SCRIPT, wrapCommand, isInitializationComplete } from '../utils/bash-init.js';
+import { BASH_INIT_SCRIPT, BASH_INIT_SCRIPT_NONINTERACTIVE, wrapCommand, isInitializationComplete } from '../utils/bash-init.js';
 
 export class SessionManager {
   private sessions: Map<string, Session> = new Map();
@@ -18,8 +18,10 @@ export class SessionManager {
 
   /**
    * Create a new session with a PTY process
+   * @param cwd Working directory for the session
+   * @param interactive Whether this session is for interactive use (affects terminal settings)
    */
-  public createSession(cwd: string): Promise<Session | null> {
+  public createSession(cwd: string, interactive: boolean = false): Promise<Session | null> {
     return new Promise((resolve) => {
       // Validate the directory
       if (!isDirectoryAllowed(cwd, this.config)) {
@@ -73,6 +75,8 @@ export class SessionManager {
         // Add the session to our map
         this.sessions.set(sessionId, session);
 
+        logger.debug(`Creating new session with ID: ${sessionId}, interactive: ${interactive}`);
+
         // Initialize the session with our script
         let output = '';
         
@@ -82,13 +86,17 @@ export class SessionManager {
             // Cleanup
             session.initialized = true;
             session.state = 'IDLE';
-            ptyProcess.onData(dataHandler);
+            ptyProcess.off('data', dataHandler);
+            logger.debug(`Session ${sessionId} initialized successfully`);
             resolve(session);
           }
         };
 
         ptyProcess.onData(dataHandler);
-        ptyProcess.write(`${BASH_INIT_SCRIPT}\n`);
+        
+        // Choose the appropriate initialization script based on the interactive flag
+        const initScript = interactive ? BASH_INIT_SCRIPT : BASH_INIT_SCRIPT_NONINTERACTIVE;
+        ptyProcess.write(`${initScript}\n`);
 
         // Set a timeout in case initialization never completes
         setTimeout(() => {
@@ -167,6 +175,11 @@ export class SessionManager {
       // Create a parser for this command
       const parser = new DefaultCommandOutputParser(command);
       session.currentParser = parser;
+      
+      // Get the unique command ID
+      const commandId = parser.getCommandId();
+      
+      logger.debug(`Executing command in session ${sessionId}: ${command} (ID: ${commandId})`);
 
       // Set up output collection
       const dataDisposable = session.process.onData((data: string) => {
@@ -185,6 +198,8 @@ export class SessionManager {
               session.state = 'IDLE';
             }
             
+            logger.debug(`Command completed in session ${sessionId}: ${command} (ID: ${commandId}, exitCode: ${result.exitCode})`);
+            
             resolve({
               success: result.exitCode === 0,
               output: result.output,
@@ -199,8 +214,8 @@ export class SessionManager {
         }
       });
 
-      // Wrap the command with our markers for easy parsing
-      const wrappedCommand = wrapCommand(command);
+      // Wrap the command with our markers and the unique command ID
+      const wrappedCommand = wrapCommand(command, commandId);
       
       // Write the command to the PTY
       session.process.write(`${wrappedCommand}\n`);
@@ -214,15 +229,25 @@ export class SessionManager {
           session.state = 'IDLE';
           session.currentParser = undefined;
           
+          logger.warn(`Command timed out in session ${sessionId}: ${command} (ID: ${commandId})`);
+          
           resolve({
             success: false,
-            output: 'Command execution timed out',
+            output: `Command timed out after ${this.config.security.commandTimeout} seconds`,
             error: `Command timed out after ${this.config.security.commandTimeout} seconds`,
             sessionId,
             command,
           });
         }
       }, timeoutMs);
+
+      // Clear the timeout when the command completes
+      const completeCheck = setInterval(() => {
+        if (parser.isComplete()) {
+          clearTimeout(timeoutId);
+          clearInterval(completeCheck);
+        }
+      }, 100);
     });
   }
 
@@ -242,7 +267,7 @@ export class SessionManager {
 
     // Write the input to the PTY
     session.process.write(`${input}\n`);
-    logger.debug(`Sent input to session ${sessionId}`);
+    logger.debug(`Sent input to session ${sessionId}: ${input}`);
 
     return true;
   }
@@ -275,6 +300,8 @@ export class SessionManager {
       let output = '';
       let resultSent = false;
       
+      logger.debug(`Collecting output after input in session ${sessionId}: ${input}`);
+      
       // Add data listener and get the disposable
       const dataDisposable = session.process.onData((data: string) => {
         output += data;
@@ -286,6 +313,8 @@ export class SessionManager {
           // Wait a short time for any additional output
           setTimeout(() => {
             dataDisposable.dispose();
+            
+            logger.debug(`Output stabilized after input in session ${sessionId}, waiting for input detected`);
             
             resolve({
               success: true,
@@ -307,6 +336,8 @@ export class SessionManager {
         if (!resultSent) {
           resultSent = true;
           dataDisposable.dispose();
+          
+          logger.debug(`Timeout after input in session ${sessionId}, collected output length: ${output.length}`);
           
           resolve({
             success: true,
@@ -339,7 +370,7 @@ export class SessionManager {
       // Remove the session from our map
       this.sessions.delete(sessionId);
 
-      // logger.info(`Closed session: ${sessionId}`);
+      logger.debug(`Closed session: ${sessionId}`);
       return true;
     } catch (error) {
       logger.error(
@@ -388,7 +419,7 @@ export class SessionManager {
       const timeSinceLastActivity = now.getTime() - session.lastActivity.getTime();
 
       if (timeSinceLastActivity > sessionTimeout) {
-        // logger.info(`Session ${sessionId} has expired and will be closed`);
+        logger.debug(`Session ${sessionId} has expired and will be closed`);
         this.closeSession(sessionId);
       }
     }
@@ -409,6 +440,6 @@ export class SessionManager {
       this.closeSession(sessionId);
     }
 
-    // logger.info('Session manager shut down');
+    logger.debug('Session manager shut down');
   }
 }

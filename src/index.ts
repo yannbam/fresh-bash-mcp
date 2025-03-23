@@ -108,9 +108,9 @@ export async function startInteractiveSession(cwd: string = process.cwd()) {
   let sessionId: string | undefined;
   
   try {
-    // Create a session
+    // Create a session - explicitly set as interactive
     console.log(`Creating interactive session in: ${cwd}`);
-    const result = await mcp.createSession(cwd);
+    const result = await mcp.createSession(cwd, true);
     
     if (!result.success || !result.sessionId) {
       console.error(`Failed to create session: ${result.error || 'Unknown error'}`);
@@ -192,6 +192,24 @@ export async function startInteractiveSession(cwd: string = process.cwd()) {
 }
 
 /**
+ * Create a timeout promise for race conditions
+ * @param timeoutMs Timeout in milliseconds
+ * @param command Command being executed (for error reporting)
+ */
+function createTimeoutPromise(timeoutMs: number, command: string): Promise<ExecutionResult> {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        success: false,
+        output: `Command timed out after ${timeoutMs/1000} seconds`,
+        error: 'Execution timeout',
+        command
+      });
+    }, timeoutMs);
+  });
+}
+
+/**
  * Start an MCP server that exposes the Bash MCP functionality
  */
 export async function startMcpServer(configPath: string = path.join(__dirname, '../config/default.json')) {
@@ -214,12 +232,24 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
             listChanged: false,
           },
         },
+        instructions: `
+This Bash MCP server provides secure access to bash commands and interactive sessions.
+
+Available tools:
+- execute_command: Run a command with a shell
+- create_session: Create an interactive bash session
+- send_session_input: Send input to an interactive session
+- close_session: Close a session
+- list_sessions: List all active sessions
+
+For interactive use, create a session with create_session, then use send_session_input for each command.
+`,
       }
     );
 
     // Register the tools/list handler
     server.setRequestHandler(ToolsListRequestSchema, async () => {
-      // logger.info('Handling tools/list request');
+      logger.debug('Handling tools/list request');
       return {
         tools: [
           {
@@ -285,7 +315,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
 
     // Register the tools/call handler for executing tools
     server.setRequestHandler(ToolCallRequestSchema, async (request) => {
-      // logger.info(`Handling tools/call request for: ${request.params.name}`);
+      logger.debug(`Handling tools/call request for: ${request.params.name}`);
       
       const toolName = request.params.name;
       const args = request.params.arguments || {};
@@ -293,13 +323,26 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle execute_command
       if (toolName === 'execute_command') {
         try {
-          // logger.info(`MCP: Executing command: ${args.command}`);
+          logger.debug(`MCP: Executing command: ${args.command}`);
           
-          const result = await bashMcp.executeCommand(args.command, { 
+          // Get timeout from args or config
+          const timeoutSec = args.timeout || config.security.commandTimeout;
+          const timeoutMs = timeoutSec * 1000;
+          
+          // Create a promise for the command execution
+          const commandPromise = bashMcp.executeCommand(args.command, { 
             cwd: args.cwd, 
-            timeout: args.timeout, 
+            timeout: timeoutSec, 
             sessionId: args.sessionId 
           });
+          
+          // Create a timeout promise
+          const timeoutPromise = createTimeoutPromise(timeoutMs, args.command);
+          
+          // Race the command execution against the timeout
+          const result = await Promise.race([commandPromise, timeoutPromise]);
+          
+          logger.debug(`MCP: Command execution completed with success=${result.success}`);
 
           return {
             content: [
@@ -327,9 +370,10 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle create_session
       else if (toolName === 'create_session') {
         try {
-          // logger.info(`MCP: Creating session in: ${args.cwd}`);
+          logger.debug(`MCP: Creating session in: ${args.cwd}`);
           
-          const result = await bashMcp.createSession(args.cwd);
+          // Create a non-interactive session for MCP use (works better with tools)
+          const result = await bashMcp.createSession(args.cwd, false);
 
           if (!result.success) {
             return {
@@ -368,16 +412,26 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle send_session_input
       else if (toolName === 'send_session_input') {
         try {
-          // logger.info(`MCP: Sending input to session: ${args.sessionId}`);
+          logger.debug(`MCP: Sending input to session: ${args.sessionId}`);
           
           // Convert timeout from seconds to milliseconds if provided
-          const timeoutMs = args.timeout ? args.timeout * 1000 : undefined;
+          const timeoutSec = args.timeout || config.security.commandTimeout;
+          const timeoutMs = timeoutSec * 1000;
           
-          const result = await bashMcp.sendInput({ 
+          // Create a promise for the input operation
+          const inputPromise = bashMcp.sendInput({ 
             sessionId: args.sessionId, 
             input: args.input,
             timeout: timeoutMs
           });
+          
+          // Create a timeout promise
+          const timeoutPromise = createTimeoutPromise(timeoutMs, args.input);
+          
+          // Race the input operation against the timeout
+          const result = await Promise.race([inputPromise, timeoutPromise]);
+          
+          logger.debug(`MCP: Session input completed with success=${result.success}`);
 
           return {
             content: [
@@ -405,7 +459,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle close_session
       else if (toolName === 'close_session') {
         try {
-          // logger.info(`MCP: Closing session: ${args.sessionId}`);
+          logger.debug(`MCP: Closing session: ${args.sessionId}`);
           
           const result = bashMcp.closeSession(args.sessionId);
 
@@ -446,7 +500,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
       // Handle list_sessions
       else if (toolName === 'list_sessions') {
         try {
-          // logger.info('MCP: Listing all sessions');
+          logger.debug('MCP: Listing all sessions');
           
           const sessions = bashMcp.listSessions();
           
@@ -506,20 +560,20 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
     
     // Set up cleanup on exit
     process.on('SIGINT', () => {
-      // logger.info('Shutting down MCP server');
+      logger.debug('Shutting down MCP server');
       bashMcp.shutdown();
       process.exit(0);
     });
 
     process.on('SIGTERM', () => {
-      // logger.info('Shutting down MCP server');
+      logger.debug('Shutting down MCP server');
       bashMcp.shutdown();
       process.exit(0);
     });
 
     // Start the server
     await server.connect(transport);
-    // logger.info('MCP server running');
+    logger.debug('MCP server running');
 
   } catch (error) {
     logger.error(`Failed to start MCP server: ${error instanceof Error ? error.message : String(error)}`);

@@ -13,7 +13,7 @@ export class BashMCP {
     this.commandExecutor = new CommandExecutor(config);
     this.sessionManager = new SessionManager(config);
 
-    // logger.info('Bash MCP initialized');
+    logger.debug('Bash MCP initialized');
   }
 
   /**
@@ -26,14 +26,14 @@ export class BashMCP {
     try {
       // Check if this is a stateful command (using an existing session)
       if (options.sessionId) {
-        // logger.info(`Executing command in existing session: ${options.sessionId}`);
+        logger.debug(`Executing command in existing session: ${options.sessionId}`);
         return this.sessionManager.executeInSession(options.sessionId, command);
       }
 
       // Determine if we should create a new session or execute stateless
       if (options.cwd && this.config.session.defaultMode === 'stateful') {
-        // Create a new session
-        const session = await this.sessionManager.createSession(options.cwd);
+        // Create a new session - non-interactive for command execution
+        const session = await this.sessionManager.createSession(options.cwd, false);
 
         if (!session) {
           return {
@@ -44,12 +44,12 @@ export class BashMCP {
           };
         }
 
-        // logger.info(`Created new session ${session.id} for command execution`);
+        logger.debug(`Created new session ${session.id} for command execution`);
         return this.sessionManager.executeInSession(session.id, command);
       }
 
       // Execute stateless
-      // logger.info('Executing stateless command');
+      logger.debug('Executing stateless command');
       return this.commandExecutor.executeCommand(command, options);
     } catch (error) {
       logger.error(
@@ -70,7 +70,7 @@ export class BashMCP {
   public sendInput(input: SessionInput): Promise<ExecutionResult> {
     const { sessionId, input: inputText } = input;
 
-    logger.info(`Sending input to session: ${sessionId}`);
+    logger.debug(`Sending input to session: ${sessionId}`);
 
     // Get the session
     const session = this.sessionManager.getSession(sessionId);
@@ -92,10 +92,15 @@ export class BashMCP {
 
   /**
    * Create a new interactive session
+   * @param cwd Working directory for the session
+   * @param interactive Whether this session is for interactive use (affects terminal settings)
    */
-  public async createSession(cwd: string): Promise<{ success: boolean; sessionId?: string; error?: string }> {
-    // logger.info(`Creating new session in directory: ${cwd}`);
-    const session = await this.sessionManager.createSession(cwd);
+  public async createSession(
+    cwd: string, 
+    interactive: boolean = true
+  ): Promise<{ success: boolean; sessionId?: string; error?: string }> {
+    logger.debug(`Creating new session in directory: ${cwd}, interactive: ${interactive}`);
+    const session = await this.sessionManager.createSession(cwd, interactive);
 
     if (!session) {
       return {
@@ -114,7 +119,7 @@ export class BashMCP {
    * Close a session
    */
   public closeSession(sessionId: string): { success: boolean; error?: string } {
-    // logger.info(`Closing session: ${sessionId}`);
+    logger.debug(`Closing session: ${sessionId}`);
     const success = this.sessionManager.closeSession(sessionId);
 
     if (!success) {
@@ -147,7 +152,7 @@ export class BashMCP {
    * Shut down the MCP
    */
   public shutdown(): void {
-    // logger.info('Shutting down Bash MCP');
+    logger.debug('Shutting down Bash MCP');
     this.sessionManager.shutdown();
   }
 }

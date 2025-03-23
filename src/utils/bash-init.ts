@@ -16,14 +16,16 @@ export PS1="MCP_PROMPT|\\$?|# "
 # Control history behavior - don't store MCP control commands
 export HISTCONTROL=ignorespace
 
-# Define command marker functions
+# Define command marker functions with command ID support
 function __mcp_cmd_start {
-  echo "MCP_CMD_START|$(date +%s.%N)"
+  local cmd_id=$1
+  echo "MCP_CMD_START|$(date +%s.%N)|${cmd_id}"
 }
 
 function __mcp_cmd_end {
   local rc=$?
-  echo "MCP_CMD_END|$(date +%s.%N)|$rc"
+  local cmd_id=$1
+  echo "MCP_CMD_END|$(date +%s.%N)|${cmd_id}|$rc"
   return $rc
 }
 
@@ -33,21 +35,40 @@ set +o xtrace
 
 # Set reasonable terminal environment
 export TERM=xterm-color
-stty -echo -icanon
 
 # Echo a marker to indicate initialization is complete
 echo "MCP_INIT_COMPLETE"
 `;
 
 /**
+ * Non-interactive version of the initialization script
+ * Includes TTY settings that make programmatic control easier
+ * but break normal interactive use
+ */
+export const BASH_INIT_SCRIPT_NONINTERACTIVE = `
+${BASH_INIT_SCRIPT}
+# Disable terminal echo for programmatic use
+stty -echo -icanon
+`;
+
+/**
  * Wrap a command with start and end markers for reliable execution monitoring
  * @param command The command to wrap
+ * @param commandId Unique identifier for this command execution
  * @returns The wrapped command
  */
-export function wrapCommand(command: string): string {
-  return `__mcp_cmd_start
-${command}
-__mcp_cmd_end`;
+export function wrapCommand(command: string, commandId: string): string {
+  // Ensure the command runs in a subshell to avoid contaminating the main shell
+  // and to properly capture exit codes
+  return `
+# Run the command with start and end markers
+(
+  __mcp_cmd_start "${commandId}"
+  (${command})
+  CMD_EXIT_CODE=$?
+  __mcp_cmd_end "${commandId}"
+  exit $CMD_EXIT_CODE
+)`;
 }
 
 /**
