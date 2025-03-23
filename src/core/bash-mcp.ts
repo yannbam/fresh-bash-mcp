@@ -70,7 +70,7 @@ export class BashMCP {
   public sendInput(input: SessionInput): Promise<ExecutionResult> {
     const { sessionId, input: inputText } = input;
 
-    // logger.info(`Sending input to session: ${sessionId}`);
+    logger.info(`Sending input to session: ${sessionId}`);
 
     // Get the session
     const session = this.sessionManager.getSession(sessionId);
@@ -83,33 +83,11 @@ export class BashMCP {
       });
     }
 
-    // Send the input
-    const success = this.sessionManager.sendInput(sessionId, inputText);
+    // Calculate timeout based on config
+    const timeout = input.timeout || this.config.security.commandTimeout * 1000;
 
-    if (!success) {
-      return Promise.resolve({
-        success: false,
-        output: '',
-        error: 'Failed to send input to session',
-        command: inputText,
-      });
-    }
-
-    // Return a promise that resolves after collecting output
-    return new Promise((resolve) => {
-      // In a real implementation, we would need a more sophisticated way to collect
-      // the output generated in response to the input. For now, we'll use a simple timeout.
-      setTimeout(() => {
-        resolve({
-          success: true,
-          output: 'Output collected after input (placeholder)',
-          sessionId,
-          command: inputText,
-          isInteractive: true,
-          waitingForInput: true, // This would need proper detection
-        });
-      }, 1000);
-    });
+    // Use the new method to send input and collect output
+    return this.sessionManager.collectOutputAfterInput(sessionId, inputText, timeout);
   }
 
   /**

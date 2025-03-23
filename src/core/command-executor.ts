@@ -35,10 +35,10 @@ export class CommandExecutor {
     // Validate the command
     const validation = validateCommand(command, this.config);
     if (!validation.isValid) {
-      logger.warn(`Command validation failed: ${validation.reason}`);
+      // logger.warn(`Command validation failed: ${validation.reason}`);
       return {
         success: false,
-        output: '',
+        output: `Command validation failed: ${validation.reason}`,
         error: validation.reason,
         command,
       };
@@ -46,10 +46,10 @@ export class CommandExecutor {
 
     // Validate the directory
     if (!isDirectoryAllowed(cwd, this.config)) {
-      logger.warn(`Directory not allowed: ${cwd}`);
+      // logger.warn(`Directory not allowed: ${cwd}`);
       return {
         success: false,
-        output: '',
+        output: `Directory not allowed: ${cwd}`,
         error: `Directory not allowed: ${cwd}`,
         command,
       };
@@ -150,7 +150,7 @@ export class CommandExecutor {
 
       // Set a timeout to kill the process if it runs too long
       const timeoutId = setTimeout(() => {
-        logger.warn(`Command timed out after ${timeoutSeconds} seconds: ${command}`);
+        // logger.warn(`Command timed out after ${timeoutSeconds} seconds: ${command}`);
         killed = true;
         childProcess.kill();
       }, timeoutSeconds * 1000);

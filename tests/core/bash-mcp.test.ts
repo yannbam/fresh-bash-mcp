@@ -149,11 +149,22 @@ describe('BashMCP', () => {
 
   describe('sendInput', () => {
     it('should send input to an existing session', async () => {
+      // Add collectOutputAfterInput mock method
+      mockSessionManager.collectOutputAfterInput = jest.fn().mockResolvedValue({
+        success: true,
+        output: 'Real output from command',
+        sessionId: 'test-session-id',
+        command: 'test input',
+        isInteractive: true,
+        waitingForInput: true
+      });
+      
       const input = { sessionId: 'test-session-id', input: 'test input' };
       const result = await mcp.sendInput(input);
 
       expect(result.success).toBe(true);
-      expect(mockSessionManager.sendInput).toHaveBeenCalledWith('test-session-id', 'test input');
+      expect(result.output).toBe('Real output from command');
+      expect(mockSessionManager.collectOutputAfterInput).toHaveBeenCalledWith('test-session-id', 'test input', undefined);
     });
 
     it('should handle non-existent sessions', async () => {
@@ -166,14 +177,22 @@ describe('BashMCP', () => {
       expect(result.error).toMatch(/Session.*not found/);
     });
 
-    it('should handle input failures', async () => {
-      mockSessionManager.sendInput.mockReturnValue(false);
-
-      const input = { sessionId: 'test-session-id', input: 'test input' };
+    it('should pass timeout to collectOutputAfterInput', async () => {
+      // Add collectOutputAfterInput mock method
+      mockSessionManager.collectOutputAfterInput = jest.fn().mockResolvedValue({
+        success: true,
+        output: 'Output with custom timeout',
+        sessionId: 'test-session-id',
+        command: 'test input',
+        isInteractive: true,
+        waitingForInput: true
+      });
+      
+      const input = { sessionId: 'test-session-id', input: 'test input', timeout: 5000 };
       const result = await mcp.sendInput(input);
 
-      expect(result.success).toBe(false);
-      expect(result.error).toMatch(/Failed to send input/);
+      expect(result.success).toBe(true);
+      expect(mockSessionManager.collectOutputAfterInput).toHaveBeenCalledWith('test-session-id', 'test input', 5000);
     });
   });
 

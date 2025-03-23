@@ -160,6 +160,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
               properties: {
                 sessionId: { type: 'string', description: 'Session ID of the interactive session' },
                 input: { type: 'string', description: 'The input to send to the session' },
+                timeout: { type: 'number', description: 'Timeout in seconds for output collection (defaults to config setting)' },
               },
               required: ['sessionId', 'input'],
             },
@@ -274,7 +275,14 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
         try {
           // logger.info(`MCP: Sending input to session: ${args.sessionId}`);
           
-          const result = await bashMcp.sendInput({ sessionId: args.sessionId, input: args.input });
+          // Convert timeout from seconds to milliseconds if provided
+          const timeoutMs = args.timeout ? args.timeout * 1000 : undefined;
+          
+          const result = await bashMcp.sendInput({ 
+            sessionId: args.sessionId, 
+            input: args.input,
+            timeout: timeoutMs
+          });
 
           return {
             content: [

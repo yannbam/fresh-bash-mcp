@@ -157,6 +157,53 @@ describe('SessionManager', () => {
     });
   });
 
+  describe('collectOutputAfterInput', () => {
+    it('should collect output after sending input', async () => {
+      // Set up the UUID for this specific test
+      mockUuidv4.mockReturnValue('collect-output-session-id');
+      
+      // Create a session
+      const session = sessionManager.createSession('/tmp');
+      expect(session).not.toBeNull();
+      
+      // Set up a mock data handler that fires immediately when onData is called
+      let dataHandler: (data: string) => void;
+      mockPtyInstance.onData.mockImplementation((handler) => {
+        dataHandler = handler;
+        return { dispose: jest.fn() };
+      });
+      
+      // Mock the write function to trigger the data handler
+      mockPtyInstance.write.mockImplementation(() => {
+        // Simulate some output after the command
+        setTimeout(() => {
+          if (dataHandler) {
+            dataHandler('Command output\nuser@host:~$ ');
+          }
+        }, 10);
+        return true;
+      });
+      
+      // Collect output after input
+      const result = await sessionManager.collectOutputAfterInput(session!.id, 'test command', 100);
+
+      // Verify results
+      expect(result.success).toBe(true);
+      expect(result.output).toContain('Command output');
+      expect(result.sessionId).toBe(session!.id);
+      expect(result.command).toBe('test command');
+      expect(result.isInteractive).toBe(true);
+      expect(result.waitingForInput).toBe(true); // Our mock output has a prompt at the end
+    });
+
+    it('should handle non-existent sessions', async () => {
+      const result = await sessionManager.collectOutputAfterInput('non-existent-id', 'test command', 100);
+      
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/Session.*not found/);
+    });
+  });
+
   describe('closeSession', () => {
     it('should close an existing session', () => {
       // Set up the UUID for this specific test

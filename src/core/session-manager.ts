@@ -154,13 +154,62 @@ export class SessionManager {
   }
 
   /**
+   * Send input to an interactive session and collect the resulting output
+   */
+  public collectOutputAfterInput(sessionId: string, input: string, timeout: number = 1000): Promise<ExecutionResult> {
+    return new Promise((resolve) => {
+      const session = this.sessions.get(sessionId);
+
+      if (!session) {
+        resolve({
+          success: false,
+          output: '',
+          error: `Session ${sessionId} not found`,
+          command: input,
+        });
+        return;
+      }
+
+      // Update last activity
+      session.lastActivity = new Date();
+
+      // Set up output collection
+      let output = '';
+      
+      // Add data listener and get the disposable
+      const dataDisposable = session.process.onData((data: string) => {
+        output += data;
+      });
+
+      // Write the input to the PTY
+      session.process.write(`${input}\n`);
+
+      // For simplicity, we'll collect output for a set time and then resolve
+      // A more sophisticated approach would detect when output has stabilized
+      setTimeout(() => {
+        // Dispose the data listener
+        dataDisposable.dispose();
+
+        resolve({
+          success: true,
+          output,
+          sessionId,
+          command: input,
+          isInteractive: true,
+          waitingForInput: this.isWaitingForInput(output),
+        });
+      }, timeout);
+    });
+  }
+
+  /**
    * Close a session
    */
   public closeSession(sessionId: string): boolean {
     const session = this.sessions.get(sessionId);
 
     if (!session) {
-      logger.warn(`Cannot close session: Session ${sessionId} not found`);
+      // logger.warn(`Cannot close session: Session ${sessionId} not found`);
       return false;
     }
 
@@ -226,20 +275,31 @@ export class SessionManager {
   }
 
   /**
-   * Simple heuristic to determine if a process is waiting for input
-   * This would need a more sophisticated implementation in production
+   * Heuristic to determine if a process is waiting for input
+   * Uses common prompt patterns to detect when a shell is waiting for user input
    */
   private isWaitingForInput(output: string): boolean {
-    // Look for common shell prompts
+    // Look for common shell prompts at the end of the output
     const promptPatterns = [
-      /[$>] *$/m, // Standard shell prompts
+      /[$#>] *$/m, // Standard shell prompts (bash, zsh, etc.)
       /Password: *$/m, // Password prompts
-      /\(y\/n\) *$/m, // Yes/no prompts
-      /Continue\? *$/m, // Continue prompts
-      /Press Enter/i, // Press Enter prompts
+      /\(y\/n\)[^\n]*$/m, // Yes/no prompts
+      /\(Y\/n\)[^\n]*$/m, // Yes/no prompts (capital Y variant)
+      /\[y\/N\][^\n]*$/m, // Yes/no prompts (square brackets variant)
+      /Continue\?[^\n]*$/m, // Continue prompts
+      /Press [Ee]nter[^\n]*$/m, // Press Enter prompts
+      /:\s*$/m, // Colon at end of line (often indicates input prompt)
+      /[Mm]ore[^\n]*$/m, // More prompts (for pagers like less, more)
+      /\? *$/m, // Question mark at end (common for interactive prompts)
+      /[Pp]rompt[^\n]*: *$/m, // Explicit prompts
+      /^\s*> *$/m, // Simple > prompt on its own line
+      /\([^)]*\) *$/m, // Parenthesized prompts like (y/n)
     ];
 
-    return promptPatterns.some((pattern) => pattern.test(output));
+    // Check if any of these patterns match at the end of the output
+    // We trim the output first to handle cases where there might be trailing whitespace
+    const trimmedOutput = output.trimEnd();
+    return promptPatterns.some((pattern) => pattern.test(trimmedOutput));
   }
 
   /**

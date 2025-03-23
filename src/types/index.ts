@@ -68,4 +68,5 @@ export interface ExecutionResult {
 export interface SessionInput {
   sessionId: string;
   input: string;
+  timeout?: number; // Timeout in milliseconds for collecting output
 }
