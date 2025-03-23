@@ -24,6 +24,11 @@ export interface MCPConfig {
 }
 
 /**
+ * Possible states for a PTY session
+ */
+export type SessionState = 'IDLE' | 'RUNNING_COMMAND' | 'INTERACTIVE_PROGRAM';
+
+/**
  * Session information for stateful execution
  */
 import { IPty } from 'node-pty';
@@ -36,6 +41,38 @@ export interface Session {
   cwd: string;
   user?: string;
   isInteractive: boolean;
+  state: SessionState;
+  initialized: boolean;
+  currentParser?: CommandOutputParser;
+  pendingCommands?: string[];
+}
+
+/**
+ * Parser for command output with markers
+ */
+export interface CommandOutputParser {
+  state: 'IDLE' | 'COLLECTING' | 'COMPLETED';
+  output: string;
+  exitCode: number | null;
+  command: string;
+  startTime?: Date;
+  endTime?: Date;
+  
+  processOutput(chunk: string): void;
+  isComplete(): boolean;
+  getResult(): CommandParseResult;
+  reset(): void;
+}
+
+/**
+ * Result from the command output parser
+ */
+export interface CommandParseResult {
+  output: string;
+  exitCode: number | null;
+  duration?: number; // in milliseconds
+  command: string;
+  isInteractive?: boolean;
 }
 
 /**
@@ -60,6 +97,7 @@ export interface ExecutionResult {
   command: string;
   isInteractive?: boolean;
   waitingForInput?: boolean;
+  duration?: number; // in milliseconds
 }
 
 /**

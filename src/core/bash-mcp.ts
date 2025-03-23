@@ -33,7 +33,7 @@ export class BashMCP {
       // Determine if we should create a new session or execute stateless
       if (options.cwd && this.config.session.defaultMode === 'stateful') {
         // Create a new session
-        const session = this.sessionManager.createSession(options.cwd);
+        const session = await this.sessionManager.createSession(options.cwd);
 
         if (!session) {
           return {
@@ -93,9 +93,9 @@ export class BashMCP {
   /**
    * Create a new interactive session
    */
-  public createSession(cwd: string): { success: boolean; sessionId?: string; error?: string } {
+  public async createSession(cwd: string): Promise<{ success: boolean; sessionId?: string; error?: string }> {
     // logger.info(`Creating new session in directory: ${cwd}`);
-    const session = this.sessionManager.createSession(cwd);
+    const session = await this.sessionManager.createSession(cwd);
 
     if (!session) {
       return {

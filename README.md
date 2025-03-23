@@ -1,4 +1,4 @@
-# Bash MCP (Master Control Program)
+# Bash MCP (Model Context Protocol)
 
 A TypeScript application that allows Claude to safely execute bash commands with security safeguards. This project implements the Model Context Protocol (MCP) to provide a secure interface for executing bash commands from AI assistants like Claude.
 
@@ -6,14 +6,31 @@ A TypeScript application that allows Claude to safely execute bash commands with
 
 - Execute bash commands in a controlled environment
 - Support for both stateless and stateful (interactive) command execution
+- Reliable command execution with accurate output capture
 - Security safeguards:
   - Whitelisted commands
   - Whitelisted directories
   - Command validation
   - Output sanitization
 - Session management for interactive commands
+- Intelligent session state tracking
+- Command output parsing with reliable completion detection
 - Comprehensive logging
 - MCP server implementation for AI integration
+
+## How It Works
+
+Bash MCP uses several techniques to ensure reliable command execution and output capture:
+
+1. **Custom Shell Initialization**: Each bash session is initialized with special markers and a custom prompt that makes command completion detection reliable.
+
+2. **Command Wrapping**: Commands are wrapped with start and end markers to precisely track when they begin and finish executing.
+
+3. **Output Parsing**: A sophisticated parsing mechanism processes terminal output to extract command results accurately.
+
+4. **Session State Management**: Sessions track their state (IDLE, RUNNING_COMMAND, INTERACTIVE_PROGRAM) to properly handle different execution contexts.
+
+5. **Interactive Program Detection**: The system can detect and properly handle interactive programs that require user input.
 
 ## Installation
 
@@ -79,19 +96,24 @@ import { initBashMCP } from 'bash-mcp';
 const mcp = await initBashMCP();
 
 // Create a session
-const session = mcp.createSession('/home/user');
-const sessionId = session.sessionId;
+const sessionResult = await mcp.createSession('/home/user');
+if (sessionResult.success && sessionResult.sessionId) {
+  const sessionId = sessionResult.sessionId;
 
-// Execute a command in the session
-const result1 = await mcp.executeCommand('ls -la', { sessionId });
-console.log(result1.output);
+  // Execute a command in the session
+  const result1 = await mcp.executeCommand('ls -la', { sessionId });
+  console.log(result1.output);
 
-// Send input to the session
-const result2 = await mcp.sendInput({ sessionId, input: 'echo "Hello, world!"' });
-console.log(result2.output);
+  // Send input to the session
+  const result2 = await mcp.sendInput({ sessionId, input: 'echo "Hello, world!"' });
+  console.log(result2.output);
 
-// Close the session when done
-mcp.closeSession(sessionId);
+  // Close the session when done
+  mcp.closeSession(sessionId);
+}
+
+// Clean up
+mcp.shutdown();
 ```
 
 ### As an MCP Server
@@ -111,6 +133,18 @@ npm run inspector
 
 See `MCP.md` for detailed documentation on the MCP server implementation.
 
+### Command Line Interface
+
+For quick testing and debugging, you can use the command line interface:
+
+```bash
+# Execute a single command
+node dist/index.js "ls -la" --cwd /home/user
+
+# Start an interactive shell session
+node dist/index.js --interactive --cwd /home/user
+```
+
 ## Security Considerations
 
 This MCP is designed with security in mind, but it's important to:
@@ -119,6 +153,32 @@ This MCP is designed with security in mind, but it's important to:
 - Regularly review and update the configuration
 - Monitor the logs for suspicious activity
 - Keep the MCP and its dependencies up to date
+
+## Technical Details
+
+### Command Output Parsing
+
+The command output parser is a state machine that processes output in chunks as they arrive from the PTY:
+
+1. IDLE: Waiting for a command to start
+2. COLLECTING: Gathering output from an active command
+3. COMPLETED: Command has finished executing
+
+For each command, we track:
+- Actual output text
+- Exit code
+- Execution duration
+- Interactive status
+
+### Session State Management
+
+Sessions track their state for proper command handling:
+
+- IDLE: Ready to accept new commands
+- RUNNING_COMMAND: A command is currently executing
+- INTERACTIVE_PROGRAM: An interactive program is running
+
+This state-aware approach ensures that commands aren't executed when the session is busy and that interactive programs are handled appropriately.
 
 ## Development
 

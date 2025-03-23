@@ -110,7 +110,7 @@ export async function startInteractiveSession(cwd: string = process.cwd()) {
   try {
     // Create a session
     console.log(`Creating interactive session in: ${cwd}`);
-    const result = mcp.createSession(cwd);
+    const result = await mcp.createSession(cwd);
     
     if (!result.success || !result.sessionId) {
       console.error(`Failed to create session: ${result.error || 'Unknown error'}`);
@@ -329,7 +329,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
         try {
           // logger.info(`MCP: Creating session in: ${args.cwd}`);
           
-          const result = bashMcp.createSession(args.cwd);
+          const result = await bashMcp.createSession(args.cwd);
 
           if (!result.success) {
             return {
@@ -461,8 +461,8 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
             };
           }
 
-          const sessionList = sessions.map((s: { id: string, createdAt: Date, lastActivity: Date, cwd: string }) => 
-            `ID: ${s.id}\nCreated: ${s.createdAt.toISOString()}\nLast Activity: ${s.lastActivity.toISOString()}\nDirectory: ${s.cwd}`
+          const sessionList = sessions.map((s) => 
+            `ID: ${s.id}\nCreated: ${s.createdAt.toISOString()}\nLast Activity: ${s.lastActivity.toISOString()}\nDirectory: ${s.cwd}\nState: ${s.state}`
           ).join('\n\n');
 
           return {
