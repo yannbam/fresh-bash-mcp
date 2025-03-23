@@ -8,6 +8,7 @@ import { createLogger, logger } from './utils/logger.js';
 import { ExecutionOptions, SessionInput, ExecutionResult } from './types/index.js';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import readline from 'readline';
 
 // Fix the __dirname issue in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -93,6 +94,100 @@ export async function sendInput(
     return await mcp.sendInput(input);
   } finally {
     // We don't shut down the MCP here because we want to keep the session alive
+  }
+}
+
+/**
+ * Start an interactive bash session for testing
+ * Creates a session and enters a REPL where commands are sent to the session
+ * and output is displayed
+ */
+export async function startInteractiveSession(cwd: string = process.cwd()) {
+  // Initialize the MCP
+  const mcp = await initBashMCP();
+  let sessionId: string | undefined;
+  
+  try {
+    // Create a session
+    console.log(`Creating interactive session in: ${cwd}`);
+    const result = mcp.createSession(cwd);
+    
+    if (!result.success || !result.sessionId) {
+      console.error(`Failed to create session: ${result.error || 'Unknown error'}`);
+      process.exit(1);
+    }
+    
+    sessionId = result.sessionId;
+    console.log(`Session created with ID: ${sessionId}`);
+    console.log('Type commands to execute them. Type \'exit\' or \'quit\' to end the session.');
+    console.log('---------------------------------------------------');
+    
+    // Set up readline interface
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      prompt: '$ '
+    });
+    
+    // Start the REPL loop
+    rl.prompt();
+    
+    rl.on('line', async (line) => {
+      // Check for exit command
+      const input = line.trim();
+      if (input === 'exit' || input === 'quit') {
+        console.log('Exiting interactive session...');
+        rl.close();
+        return;
+      }
+      
+      try {
+        // Send the input to the session
+        // Use the default timeout from security.commandTimeout (convert to ms)
+        const timeoutMs = mcp.getConfig().security.commandTimeout * 1000;
+        
+        // We've already checked sessionId earlier, but TypeScript needs reassurance
+        if (!sessionId) {
+          throw new Error('Session ID not available');
+        }
+        
+        const response = await mcp.sendInput({ sessionId, input, timeout: timeoutMs });
+        
+        // Display the output
+        console.log(response.output);
+        
+        // Indicate if the session is waiting for input
+        if (response.waitingForInput) {
+          console.log('(Waiting for input...)');
+        }
+      } catch (error) {
+        console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+      }
+      
+      // Prompt for the next command
+      rl.prompt();
+    });
+    
+    rl.on('close', () => {
+      console.log('Closing session...');
+      if (sessionId) {
+        mcp.closeSession(sessionId);
+      }
+      mcp.shutdown();
+      process.exit(0);
+    });
+  } catch (error) {
+    console.error(`Session error: ${error instanceof Error ? error.message : String(error)}`);
+    // Try to clean up the session if it was created
+    if (sessionId) {
+      try {
+        mcp.closeSession(sessionId);
+      } catch (closeError) {
+        console.error(`Error closing session: ${closeError instanceof Error ? closeError.message : String(closeError)}`);
+      }
+    }
+    mcp.shutdown();
+    throw error;
   }
 }
 
@@ -445,11 +540,28 @@ if (isMainModule) {
       console.error('Fatal error:', error);
       process.exit(1);
     });
-  } else {
-    // Regular CLI mode
+  } 
+  // Check if we should run in interactive mode
+  else if (args.includes('--interactive') || args.includes('-i')) {
+    // Extract the working directory if specified
+    let cwd = process.cwd();
+    const cwdIndex = args.indexOf('--cwd');
+    if (cwdIndex !== -1 && args.length > cwdIndex + 1) {
+      cwd = args[cwdIndex + 1];
+    }
+    
+    // Start interactive REPL
+    startInteractiveSession(cwd).catch((error) => {
+      console.error('Interactive session error:', error);
+      process.exit(1);
+    });
+  }
+  // Regular CLI mode for single command execution
+  else {
     if (args.length === 0) {
       console.log('Usage: bash-mcp <command> [options]');
       console.log('       bash-mcp --mcp-server (to start MCP server mode)');
+      console.log('       bash-mcp --interactive [--cwd <directory>] (to start interactive mode)');
       process.exit(1);
     }
 

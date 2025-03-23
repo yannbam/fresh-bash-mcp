@@ -137,6 +137,13 @@ export class BashMCP {
   }
 
   /**
+   * Get the current configuration
+   */
+  public getConfig(): MCPConfig {
+    return this.config;
+  }
+
+  /**
    * Shut down the MCP
    */
   public shutdown(): void {
