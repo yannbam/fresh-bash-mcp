@@ -296,7 +296,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
           //     type: 'object',
           //     properties: {},
           //   },
-          },
+          // },
         ],
       };
     });

@@ -17,17 +17,16 @@ export function createLogger(config: MCPConfig): winston.Logger {
     format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
     defaultMeta: { service: 'bash-mcp' },
     transports: [
-      // Console transport
-      new winston.transports.Console({
-        format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
-      }),
       // File transport
       new winston.transports.File({
         filename: config.logging.file,
         maxsize: config.logging.maxSize,
         maxFiles: config.logging.maxFiles,
+        level: 'silly'
       }),
     ],
+    silent: false,
+    exitOnError: false,
   });
 }
 
@@ -35,5 +34,6 @@ export function createLogger(config: MCPConfig): winston.Logger {
 export const logger = winston.createLogger({
   level: 'info',
   format: winston.format.simple(),
-  transports: [new winston.transports.Console()],
+  silent: true
+  // transports: [new winston.transports.Console()],
 });
