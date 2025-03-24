@@ -14,7 +14,8 @@
     "rm",
     "cp",
     "mv",
-    "git"
+    "git",
+    "npm"
   ],
   "allowedDirectories": [
     "/tmp",
