@@ -38,7 +38,7 @@ export class CommandExecutor {
       logger.warn(`Command validation failed: ${validation.reason}`);
       return {
         success: false,
-        output: `Command validation failed: ${validation.reason}`,
+        output: `Command validation failed: ${validation.reason}\nAllowed commands: ${this.config.allowedCommands}`,
         error: validation.reason,
         command,
       };
