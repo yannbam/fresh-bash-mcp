@@ -14,7 +14,7 @@
     "rm",
     "cp",
     "mv",
-    "git",
+    "git"
   ],
   "allowedDirectories": [
     "/tmp",

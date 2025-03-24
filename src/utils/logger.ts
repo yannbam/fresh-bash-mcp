@@ -24,6 +24,10 @@ export function createLogger(config: MCPConfig): winston.Logger {
         maxFiles: config.logging.maxFiles,
         level: 'silly'
       }),
+      new winston.transports.Console({
+              format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+              stderrLevels: ['error', 'warn', 'info', 'verbose', 'debug', 'silly'], // All levels to stderr
+            }),
     ],
     silent: false,
     exitOnError: false,
@@ -34,6 +38,8 @@ export function createLogger(config: MCPConfig): winston.Logger {
 export const logger = winston.createLogger({
   level: 'info',
   format: winston.format.simple(),
-  silent: true
-  // transports: [new winston.transports.Console()],
+  silent: false,
+  transports: [new winston.transports.Console({
+      stderrLevels: ['error', 'warn', 'info', 'verbose', 'debug', 'silly'], // Send all levels to stderr
+    })],
 });
