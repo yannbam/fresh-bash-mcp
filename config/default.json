@@ -26,7 +26,7 @@
     "defaultMode": "stateless"
   },
   "security": {
-    "validateCommandsStrictly": true,
+    "validateCommandsStrictly": false,
     "sanitizeOutput": true,
     "maxOutputSize": 1048576,
     "commandTimeout": 30

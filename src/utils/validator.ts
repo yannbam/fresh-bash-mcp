@@ -17,7 +17,7 @@ export function isCommandAllowed(command: string, config: MCPConfig): boolean {
   const isAllowed = config.allowedCommands.includes(baseCommand);
 
   if (!isAllowed) {
-    // logger.warn(`Command "${baseCommand}" is not in the allowed list`);
+    logger.warn(`Command "${baseCommand}" is not in the allowed list`);
   }
 
   return isAllowed;
@@ -44,7 +44,7 @@ export function isDirectoryAllowed(directory: string, config: MCPConfig): boolea
   });
 
   if (!isAllowed) {
-    // logger.warn(`Directory "${directory}" is not allowed`);
+    logger.warn(`Directory "${directory}" is not allowed`);
   }
 
   return isAllowed;

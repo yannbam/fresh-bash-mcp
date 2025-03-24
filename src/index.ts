@@ -251,7 +251,7 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
                 timeout: { type: 'number', description: 'Timeout in seconds (defaults to config setting)' },
                 sessionId: { type: 'string', description: 'Session ID for stateful commands (if omitted, a stateless command is executed)' },
               },
-              required: ['command'],
+              required: ['command','cwd'],
             },
           },
           // {

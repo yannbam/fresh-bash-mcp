@@ -35,7 +35,7 @@ export class CommandExecutor {
     // Validate the command
     const validation = validateCommand(command, this.config);
     if (!validation.isValid) {
-      // logger.warn(`Command validation failed: ${validation.reason}`);
+      logger.warn(`Command validation failed: ${validation.reason}`);
       return {
         success: false,
         output: `Command validation failed: ${validation.reason}`,
@@ -46,17 +46,17 @@ export class CommandExecutor {
 
     // Validate the directory
     if (!isDirectoryAllowed(cwd, this.config)) {
-      // logger.warn(`Directory not allowed: ${cwd}`);
+      logger.warn(`Directory not allowed: ${cwd}`);
       return {
         success: false,
-        output: `Directory not allowed: ${cwd}`,
-        error: `Directory not allowed: ${cwd}`,
+        output: `Directory not allowed: ${cwd}\nAllowed directories: ${this.config.allowedDirectories}`,
+        error: '',
         command,
       };
     }
 
     // Log the command execution
-    // logger.info(`Executing command: ${command} in directory: ${cwd}`);
+    logger.info(`Executing command: ${command} in directory: ${cwd}`);
 
     try {
       // Execute the command
@@ -150,7 +150,7 @@ export class CommandExecutor {
 
       // Set a timeout to kill the process if it runs too long
       const timeoutId = setTimeout(() => {
-        // logger.warn(`Command timed out after ${timeoutSeconds} seconds: ${command}`);
+        logger.warn(`Command timed out after ${timeoutSeconds} seconds: ${command}`);
         killed = true;
         childProcess.kill();
       }, timeoutSeconds * 1000);

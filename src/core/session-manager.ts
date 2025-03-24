@@ -387,7 +387,7 @@ export class SessionManager {
     const session = this.sessions.get(sessionId);
 
     if (!session) {
-      // logger.warn(`Cannot close session: Session ${sessionId} not found`);
+      logger.warn(`Cannot close session: Session ${sessionId} not found`);
       return false;
     }
 
