@@ -254,48 +254,48 @@ export async function startMcpServer(configPath: string = path.join(__dirname, '
               required: ['command'],
             },
           },
-          {
-            name: 'create_session',
-            description: 'Create a new interactive bash session',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                cwd: { type: 'string', description: 'Working directory for the session (must be in an allowed directory)' },
-              },
-              required: ['cwd'],
-            },
-          },
-          {
-            name: 'send_session_input',
-            description: 'Send input to an interactive bash session',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string', description: 'Session ID of the interactive session' },
-                input: { type: 'string', description: 'The input to send to the session' },
-                timeout: { type: 'number', description: 'Timeout in seconds for output collection (defaults to config setting)' },
-              },
-              required: ['sessionId', 'input'],
-            },
-          },
-          {
-            name: 'close_session',
-            description: 'Close an interactive bash session',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                sessionId: { type: 'string', description: 'Session ID of the interactive session to close' },
-              },
-              required: ['sessionId'],
-            },
-          },
-          {
-            name: 'list_sessions',
-            description: 'List all active bash sessions',
-            inputSchema: {
-              type: 'object',
-              properties: {},
-            },
+          // {
+          //   name: 'create_session',
+          //   description: 'Create a new interactive bash session',
+          //   inputSchema: {
+          //     type: 'object',
+          //     properties: {
+          //       cwd: { type: 'string', description: 'Working directory for the session (must be in an allowed directory)' },
+          //     },
+          //     required: ['cwd'],
+          //   },
+          // },
+          // {
+          //   name: 'send_session_input',
+          //   description: 'Send input to an interactive bash session',
+          //   inputSchema: {
+          //     type: 'object',
+          //     properties: {
+          //       sessionId: { type: 'string', description: 'Session ID of the interactive session' },
+          //       input: { type: 'string', description: 'The input to send to the session' },
+          //       timeout: { type: 'number', description: 'Timeout in seconds for output collection (defaults to config setting)' },
+          //     },
+          //     required: ['sessionId', 'input'],
+          //   },
+          // },
+          // {
+          //   name: 'close_session',
+          //   description: 'Close an interactive bash session',
+          //   inputSchema: {
+          //     type: 'object',
+          //     properties: {
+          //       sessionId: { type: 'string', description: 'Session ID of the interactive session to close' },
+          //     },
+          //     required: ['sessionId'],
+          //   },
+          // },
+          // {
+          //   name: 'list_sessions',
+          //   description: 'List all active bash sessions',
+          //   inputSchema: {
+          //     type: 'object',
+          //     properties: {},
+          //   },
           },
         ],
       };

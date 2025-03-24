@@ -13,11 +13,12 @@
     "touch",
     "rm",
     "cp",
-    "mv"
+    "mv",
+    "git",
   ],
   "allowedDirectories": [
     "/tmp",
-    "/home"
+    "/home/jan/ai/claude/claude_fs"
   ],
   "session": {
     "timeout": 300,
